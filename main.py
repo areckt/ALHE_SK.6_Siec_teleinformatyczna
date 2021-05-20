@@ -1,6 +1,12 @@
 import xml.dom.minidom
 
 
+class Link:
+    def __init__(self, name, flow_load):
+        self.name = name
+        self.flow_load = flow_load
+
+
 class Demand:
     def __init__(self, source, target, demand_value, admissible_paths):
         self.source = source
@@ -48,3 +54,5 @@ if __name__ == '__main__':
 
     for d in demands:
         print(d)
+
+
