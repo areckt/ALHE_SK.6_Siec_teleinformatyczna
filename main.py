@@ -1,10 +1,55 @@
 import xml.dom.minidom
+import numpy as np
 
 
 class Link:
     def __init__(self, name, flow_load):
         self.name = name
         self.flow_load = flow_load
+
+
+class EvolutionAlgorithm:
+    def __init__(self, list_of_demands, population_size=150, crossover_prob=0.2, generations=100,
+                 modularity=10, aggregation=False, seed=17):
+        self.demands = list_of_demands
+        self.population_size = population_size
+        self.crossover_prob = crossover_prob
+        self.generations = generations
+        self.modularity = modularity
+        self.aggregation = aggregation
+        self.seed = seed
+        self.max_num_of_paths = 7
+        self.min_value = 0
+        self.max_value = max([x.demand_value for x in list_of_demands])
+        self.num_of_demands = len(list_of_demands)
+
+    def initialize(self):
+        # returns (population_size * num_of_demands * max_num_of_paths) random integers
+        # in the range [min_value, max_value)
+        return np.random.randint(self.min_value,
+                                 self.max_value,
+                                 (self.population_size, self.num_of_demands, self.max_num_of_paths))
+
+    def generate(self, population, index):
+        pass
+
+    def evaluation_method(self, specimen, show_links=False):
+        pass
+
+    def evaluate(self, trial_specimen, specimen, population, index):
+        specimen_value = self.evaluation_method(specimen)
+        trial_specimen_value = self.evaluation_method(trial_specimen)
+        if trial_specimen_value <= specimen_value:
+            population[index] = trial_specimen
+
+    def crossover(self, first_specimen, second_specimen):
+        pass
+
+    def mutate(self, specimen):
+        pass
+
+    def run(self):
+        pass
 
 
 class Demand:
@@ -55,4 +100,21 @@ if __name__ == '__main__':
     for d in demands:
         print(d)
 
+    algorithm = EvolutionAlgorithm(demands, ...)
+    iterations = ...
 
+    for i in range(iterations):
+        population = algorithm.run()
+
+        best = population[0]
+        best_value = EvolutionAlgorithm.evaluation_method(algorithm, best)
+
+        for specimen in population:
+            current_value = EvolutionAlgorithm.evaluation_method(algorithm, specimen)
+            if current_value < best_value:
+                best = specimen
+                best_value = EvolutionAlgorithm.evaluation_method(algorithm, best)
+
+        print("\n### " + str(i) + " ###")
+
+        print("\nBest value: " + str(best_value))
