@@ -30,9 +30,11 @@ class EvolutionAlgorithm:
                                  self.max_value,
                                  (self.population_size, self.num_of_demands, self.max_num_of_paths))
 
+    # TODO method to generate population (maybe 'select' would be a better name than 'generate'?)
     def generate(self, population, index):
         pass
 
+    # TODO evaluation method - count used systems (the lesser the better)
     def evaluation_method(self, specimen, show_links=False):
         pass
 
@@ -42,12 +44,23 @@ class EvolutionAlgorithm:
         if trial_specimen_value <= specimen_value:
             population[index] = trial_specimen
 
+    # TODO crossover method (it's possible to skip it if it doesn't make sense to use it)
     def crossover(self, first_specimen, second_specimen):
         pass
 
+    # TODO mutation - careful not to end up with some silly values of flow
+    #  maybe some sort of repair method will be necessary
     def mutate(self, specimen):
         pass
 
+    # TODO main 'run' function, generally we want to:
+    #  1) GENERATE init population
+    #  in loop for num_of_generations times:
+    #    2) EVALUATE population
+    #    3) MUTATE some % of population
+    #    4) CROSSOVER some % of population (optional)
+    #    5) SELECT population_size specimens to create next generation (preferably use tournament selection)
+    #    back to 2)
     def run(self):
         pass
 
@@ -86,8 +99,8 @@ def get_demands_from_network(network):
         list_of_demands.append(Demand(demand.getElementsByTagName('source')[0].firstChild.data,
                                       demand.getElementsByTagName('target')[0].firstChild.data,
                                       int(float(demand.getElementsByTagName('demandValue')[0].firstChild.data)),
-                                      paths
-                                      ))
+                                      paths))
+
     return list_of_demands
 
 
@@ -100,7 +113,12 @@ if __name__ == '__main__':
     for d in demands:
         print(d)
 
+    # TODO parse options given by the user
+
+    # TODO fill in missing variables
     algorithm = EvolutionAlgorithm(demands, ...)
+
+    # TODO number of iterations should come from options given by the user
     iterations = ...
 
     for i in range(iterations):
@@ -116,5 +134,4 @@ if __name__ == '__main__':
                 best_value = EvolutionAlgorithm.evaluation_method(algorithm, best)
 
         print("\n### " + str(i) + " ###")
-
         print("\nBest value: " + str(best_value))
