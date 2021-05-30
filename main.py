@@ -1,5 +1,11 @@
+import random
 import xml.dom.minidom
+from optparse import OptionParser
+
+import numpy
 import numpy as np
+from numpy.random import randint
+from numpy.random import rand
 
 
 class Link:
@@ -30,9 +36,14 @@ class EvolutionAlgorithm:
                                  self.max_value,
                                  (self.population_size, self.num_of_demands, self.max_num_of_paths))
 
-    # TODO method to generate population (maybe 'select' would be a better name than 'generate'?)
-    def generate(self, population, index):
-        pass
+    def generate(self, population, scores, k=3):
+        # first random selection
+        selection_ix = randint(len(population))
+        for ix in randint(0, len(population), k - 1):
+            # check if better (e.g. perform a tournament)
+            if scores[ix] < scores[selection_ix]:
+                selection_ix = ix
+        return population[selection_ix]
 
     # TODO evaluation method - count used systems (the lesser the better)
     def evaluation_method(self, specimen, show_links=False):
@@ -44,9 +55,17 @@ class EvolutionAlgorithm:
         if trial_specimen_value <= specimen_value:
             population[index] = trial_specimen
 
-    # TODO crossover method (it's possible to skip it if it doesn't make sense to use it)
     def crossover(self, first_specimen, second_specimen):
-        pass
+        # children are copies of parents by default
+        first_child, second_child = first_specimen.copy(), second_specimen.copy()
+        # check for recombination
+        if rand() < self.crossover_prob:
+            # select crossover point that is not on the end of the string
+            pt = randint(1, len(first_specimen) - 2)
+            # perform crossover
+            first_child = first_specimen[:pt] + second_specimen[pt:]
+            second_child = second_specimen[:pt] + first_specimen[pt:]
+        return [first_child, second_child]
 
     # TODO mutation - careful not to end up with some silly values of flow
     #  maybe some sort of repair method will be necessary
@@ -107,19 +126,45 @@ def get_demands_from_network(network):
 if __name__ == '__main__':
     print("hello world")
 
+    usage = "usage: %prog [options]\n" \
+            "Params: -s, -i, -m, -a, -n, -c, -w, -g\n"
+    parser = OptionParser(usage=usage)
+
+    parser.add_option("-d", "--demands", action="store_true", dest="demands", default=False,
+                      help="Prints demands")
+
+    parser.add_option("-i", "--iterations", type="int", dest="iterations", default=10,
+                      help="Number of algorithms runs, incrementing seed by 1 (default 10)")
+
+    parser.add_option("-s", "--seed", type="int", dest="seed", default=17,
+                      help="Initial seed for numpy and random (default 17)")
+    parser.add_option("-m", "--modularity", type="int", dest="modularity", default=10,
+                      help="Modularity for systems counting (default 10)")
+    parser.add_option("-a", "--aggregation", action="store_true", dest="aggregation", default=False,
+                      help="Aggregate flows")
+    parser.add_option("-g", "--generations", type="int", dest="generations", default=100,
+                      help="Max generations (default 100)")
+
+    parser.add_option("-n", "--population_size", type="int", dest="population_size", default=150,
+                      help="Population size (default 150)")
+    parser.add_option("-c", "--crossover", type="float", dest="crossover_probability", default=0.2,
+                      help="Crossover probability (default 0.2)")
+
+    (options, args) = parser.parse_args()
     network_data = xml.dom.minidom.parse('network.xml')
     demands = get_demands_from_network(network_data)
 
     for d in demands:
         print(d)
 
-    # TODO parse options given by the user
+    algorithm = EvolutionAlgorithm(demands, population_size=options.population_size,
+                                   crossover_prob=options.crossover_probability,
+                                   generations=options.generations,
+                                   modularity=options.modularity,
+                                   aggregation=options.aggregation,
+                                   seed=options.seed)
 
-    # TODO fill in missing variables
-    algorithm = EvolutionAlgorithm(demands, ...)
-
-    # TODO number of iterations should come from options given by the user
-    iterations = ...
+    iterations = options.iterations
 
     for i in range(iterations):
         population = algorithm.run()
