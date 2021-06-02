@@ -5,12 +5,7 @@ import xml.dom.minidom
 from optparse import OptionParser
 import numpy as np
 from numpy.random import randint
-
-
-class Link:
-    def __init__(self, name, flow_load):
-        self.name = name
-        self.flow_load = flow_load
+from util_classes import *
 
 
 class EvolutionAlgorithm:
@@ -37,15 +32,18 @@ class EvolutionAlgorithm:
                                  self.max_value,
                                  (self.population_size, self.num_of_demands, self.max_num_of_paths))
 
-    @staticmethod
-    def __generate(population, scores, k=3):
-        # first random selection
-        selection_ix = randint(len(population))
-        for ix in randint(0, len(population), k - 1):
-            # check if better (e.g. perform a tournament)
-            if scores[ix] < scores[selection_ix]:
-                selection_ix = ix
-        return population[selection_ix]
+    def __tournament_selection(self, old_population):
+        random.seed()
+        new_population = []
+        while len(new_population) != len(old_population):
+            first_specimen = old_population[random.randrange(0, len(old_population), 1)]
+            second_specimen = old_population[random.randrange(0, len(old_population), 1)]
+            if self.evaluation_method(first_specimen) < self.evaluation_method(second_specimen):
+                new_population.append(first_specimen)
+            else:
+                new_population.append(second_specimen)
+
+        return new_population
 
     def evaluation_method(self, specimen_to_evaluate, show_links=False):
         num_of_systems = 0  # this is what we want to minimize
@@ -208,60 +206,17 @@ class EvolutionAlgorithm:
         for index, cur_specimen in enumerate(cur_population.tolist()):
             cur_population[index] = self.__repair(cur_specimen)
 
-        # print("AFTER INIT")
-        # print(cur_population[0])
-
         for generation in range(self.generations):
-            # MUTATE some % of cur_population
+            # MUTATION of some % of cur_population
             cur_population = self.__mutate_population(cur_population)
-            # print("AFTER MUTATION")
-            # print(cur_population[0])
 
-            # CROSSOVER some % of cur_population (optional)
+            # CROSSOVER of some % of cur_population (optional)
             cur_population = self.__crossover_population(cur_population)
-            # print("AFTER CROSSOVER")
-            # print(cur_population[0])
+
+            # TOURNAMENT SELECTION
+            cur_population = self.__tournament_selection(cur_population)
 
         return cur_population
-
-
-class Demand:
-    def __init__(self, source, target, demand_value, admissible_paths):
-        self.source = source
-        self.target = target
-        self.demand_value = demand_value
-        self.admissible_paths = admissible_paths
-
-    def __repr__(self):
-        paths_str = []
-        for num, path in enumerate(self.admissible_paths):
-            links_str = []
-            for link in path:
-                links_str.append("\t\t" + link)
-            paths_str.append("\n\tPath " + str(num) + ": " + "\n" + "\n".join(links_str) + "\n")
-
-        return f'Source: {self.source}\n' \
-               f'Target: {self.target}\n' \
-               f'DemandValue: {self.demand_value}\n' \
-               f'AdmissiblePaths: {"".join(paths_str)}'
-
-
-def get_demands_from_network(network):
-    list_of_demands = []
-    for demand in network.getElementsByTagName('demand'):
-        paths = []
-        for path in demand.getElementsByTagName('admissiblePath'):
-            links = []
-            for link in path.getElementsByTagName('linkId'):
-                links.append(link.firstChild.data)
-            paths.append(links)
-
-        list_of_demands.append(Demand(demand.getElementsByTagName('source')[0].firstChild.data,
-                                      demand.getElementsByTagName('target')[0].firstChild.data,
-                                      int(float(demand.getElementsByTagName('demandValue')[0].firstChild.data)),
-                                      paths))
-
-    return list_of_demands
 
 
 if __name__ == '__main__':
