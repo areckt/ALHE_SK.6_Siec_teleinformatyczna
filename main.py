@@ -9,8 +9,8 @@ from util_classes import *
 
 
 class EvolutionAlgorithm:
-    def __init__(self, list_of_demands, population_size=150, crossover_prob=0.2, mutation_prob=0.2,
-                 generations=100, modularity=10, aggregation=False, seed=17):
+    def __init__(self, list_of_demands, population_size=100, crossover_prob=0.2, mutation_prob=0.2,
+                 generations=10, modularity=10, aggregation=False, seed=17):
         self.demands = list_of_demands
         self.population_size = population_size
         self.crossover_prob = crossover_prob
@@ -185,14 +185,6 @@ class EvolutionAlgorithm:
 
         return specimen_to_repair
 
-    # TODO main 'run' function, generally we want to:
-    #  1) GENERATE init population
-    #  in loop for num_of_generations times:
-    #    2) EVALUATE population
-    #    3) MUTATE some % of population
-    #    4) CROSSOVER some % of population (optional)
-    #    5) SELECT population_size specimens to create next generation (preferably use tournament selection)
-    #    back to 2)
     def run(self):
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -223,15 +215,17 @@ if __name__ == '__main__':
     print("hello world")
 
     usage = "usage: %prog [options]\n" \
+            "Debug: -q, -d\n" \
             "Params: -s, -i, -m, -a, -n, -c, -w, -g, -u\n"
     parser = OptionParser(usage=usage)
 
+    parser.add_option("-q", "--debug", action="store_true", dest="debug", default=False,
+                      help="Prints debug info")
     parser.add_option("-d", "--demands", action="store_true", dest="demands", default=False,
                       help="Prints demands")
 
-    parser.add_option("-i", "--iterations", type="int", dest="iterations", default=3,
+    parser.add_option("-i", "--iterations", type="int", dest="iterations", default=10,
                       help="Number of algorithms runs, incrementing seed by 1 (default 10)")
-
     parser.add_option("-s", "--seed", type="int", dest="seed", default=17,
                       help="Initial seed for numpy and random (default 17)")
     parser.add_option("-m", "--modularity", type="int", dest="modularity", default=10,
@@ -239,10 +233,9 @@ if __name__ == '__main__':
     parser.add_option("-a", "--aggregation", action="store_true", dest="aggregation", default=False,
                       help="Aggregate flows")
     parser.add_option("-g", "--generations", type="int", dest="generations", default=10,
-                      help="Max generations (default 100)")
-
-    parser.add_option("-n", "--population_size", type="int", dest="population_size", default=150,
-                      help="Population size (default 150)")
+                      help="Max generations (default 10)")
+    parser.add_option("-n", "--population_size", type="int", dest="population_size", default=100,
+                      help="Population size (default 100)")
     parser.add_option("-c", "--crossover", type="float", dest="crossover_probability", default=0.2,
                       help="Crossover probability (default 0.2)")
     parser.add_option("-u", "--mutation", type="float", dest="mutation_probability", default=0.2,
@@ -252,8 +245,12 @@ if __name__ == '__main__':
     network_data = xml.dom.minidom.parse('network.xml')
     demands = get_demands_from_network(network_data)
 
-    # for d in demands:
-    #     print(d)
+    # global debug
+    debug = options.debug
+
+    if options.demands:
+        for demand in demands:
+            print(demand)
 
     algorithm = EvolutionAlgorithm(demands, population_size=options.population_size,
                                    crossover_prob=options.crossover_probability,
@@ -265,6 +262,7 @@ if __name__ == '__main__':
 
     iterations = options.iterations
 
+    all_values = []
     for i in range(iterations):
         population = algorithm.run()
 
@@ -277,5 +275,13 @@ if __name__ == '__main__':
                 best = specimen
                 best_value = EvolutionAlgorithm.evaluation_method(algorithm, best)
 
-        print("\n### " + str(i) + " ###")
+        all_values.append(best_value)
+
+        if debug:
+            print("BEST SPECIMEN: ")
+            print(str(best)+'\n')
+        else:
+            print("\n### " + str(i) + " ###")
         print("\nBest value: " + str(best_value))
+    info = f'\nAverage of {str(len(all_values))} runs: {str(sum(all_values) / len(all_values))}'
+    print(info)
