@@ -1,8 +1,8 @@
+import copy
+import math
 import random
 import xml.dom.minidom
 from optparse import OptionParser
-
-import numpy
 import numpy as np
 from numpy.random import randint
 from numpy.random import rand
@@ -15,11 +15,12 @@ class Link:
 
 
 class EvolutionAlgorithm:
-    def __init__(self, list_of_demands, population_size=150, crossover_prob=0.2, generations=100,
-                 modularity=10, aggregation=False, seed=17):
+    def __init__(self, list_of_demands, population_size=150, crossover_prob=0.2, mutation_prob=0.2,
+                 generations=100, modularity=10, aggregation=False, seed=17):
         self.demands = list_of_demands
         self.population_size = population_size
         self.crossover_prob = crossover_prob
+        self.mutation_prob = mutation_prob
         self.generations = generations
         self.modularity = modularity
         self.aggregation = aggregation
@@ -30,7 +31,8 @@ class EvolutionAlgorithm:
         self.num_of_demands = len(list_of_demands)
 
     def initialize(self):
-        # returns (population_size * num_of_demands * max_num_of_paths) random integers
+        # returns population_size vectors, where each vector has num_of_demands (66) vectors,
+        # where each of those vectors has max_num_of_paths (7) random integers
         # in the range [min_value, max_value)
         return np.random.randint(self.min_value,
                                  self.max_value,
@@ -45,9 +47,38 @@ class EvolutionAlgorithm:
                 selection_ix = ix
         return population[selection_ix]
 
-    # TODO evaluation method - count used systems (the lesser the better)
     def evaluation_method(self, specimen, show_links=False):
-        pass
+        num_of_systems = 0  # this is what we want to minimize
+
+        list_of_links = []
+
+        # add all loads on links to list
+        for i, flows_for_demand in enumerate(specimen):
+            for j, flow in enumerate(flows_for_demand):
+                if flow <= 0:
+                    continue
+
+                corresponding_path = demands[i].admissible_paths[j]
+                for link_name in corresponding_path:
+                    does_link_exist = False
+                    link_index = 0
+                    for index, l in enumerate(list_of_links):
+                        if l.name == link_name:
+                            does_link_exist = True
+                            link_index = index
+                            break
+
+                    if does_link_exist:
+                        list_of_links[link_index].flow_load += flow
+                    else:
+                        list_of_links.append(Link(link_name, flow))
+
+        # for every loaded link add system depending on modularity
+        for link in list_of_links:
+            if show_links:
+                print("Link: " + str(link.name) + "\n\tLoad: " + str(link.flow_load))
+            num_of_systems += math.ceil(link.flow_load / self.modularity)
+        return num_of_systems
 
     def evaluate(self, trial_specimen, specimen, population, index):
         specimen_value = self.evaluation_method(specimen)
@@ -67,10 +98,68 @@ class EvolutionAlgorithm:
             second_child = second_specimen[:pt] + first_specimen[pt:]
         return [first_child, second_child]
 
-    # TODO mutation - careful not to end up with some silly values of flow
-    #  maybe some sort of repair method will be necessary
+    def mutate_population(self, population):
+        mutated_population = []
+        for specimen in population:
+            random.seed()
+            random_num = random.uniform(0, 1)
+            if random_num <= self.mutation_prob:
+                mutated_specimen = self.mutate(specimen)
+                mutated_repaired_specimen = self.repair(mutated_specimen)
+                mutated_population.append(mutated_repaired_specimen)
+            else:
+                mutated_population.append(specimen)
+        random.seed(self.seed)
+        return mutated_population
+
     def mutate(self, specimen):
-        pass
+        mutated_vector = copy.deepcopy(specimen)
+
+        i = random.randint(0, self.num_of_demands - 1)
+        j = random.randint(0, self.max_num_of_paths - 1)
+
+        index_of_flow = 0
+        for index, flow in enumerate(specimen[i]):
+            if flow > 0:
+                index_of_flow = index
+
+        mutated_vector[i][index_of_flow] = 0
+
+        mutated_vector[i][j] = specimen[i][index_of_flow]
+
+        return mutated_vector
+
+    def repair(self, specimen):
+
+        # at first we switch all negative flows to positive
+        for demand in specimen:
+            for i, flow in enumerate(demand):
+                if demand[i] < 0:
+                    demand[i] *= -1
+
+        # if aggregation is on (i.e. only one flow, rest must be 0)
+        # we find the max flow and zero the rest
+        # then we give the found max full flow
+        if self.aggregation:
+            for i, demand in enumerate(specimen):
+                max_index = 0
+                max = -1
+                for j, flow in enumerate(demand):
+                    if flow > max:
+                        max_index = j
+                        max = flow
+                    demand[j] = 0
+                demand[max_index] = demands[i].demand_value
+
+        # if aggregation is off we normalize all flows to prevent overflow
+        else:
+            for i, demand in enumerate(specimen):
+                ratio = demands[i].demand_value / np.sum(demand)
+
+                for j, flow in enumerate(demand):
+                    demand[j] = round(demand[j] * ratio)
+
+        return specimen
 
     # TODO main 'run' function, generally we want to:
     #  1) GENERATE init population
@@ -81,7 +170,32 @@ class EvolutionAlgorithm:
     #    5) SELECT population_size specimens to create next generation (preferably use tournament selection)
     #    back to 2)
     def run(self):
-        pass
+
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+
+        print(str(random.uniform(0, 1)))
+
+
+        #  1) GENERATE init population
+        population = self.initialize()
+        print("num of specimens in population: " + str(len(population)))
+        print("len of one specimen: " + str(len(population[0])))
+        print("len of one element of specimen: " + str(len(population[0][0])))
+
+        print(population[0][0])
+
+        for i, specimen in enumerate(population.tolist()):
+            population[i] = self.repair(specimen)
+
+        print(population[0][0])
+
+        for generation in range(self.generations):
+            # 3) MUTATE some % of population
+            population = self.mutate_population(population)
+            print(population[0][0])
+
+        return population
 
 
 class Demand:
@@ -127,7 +241,7 @@ if __name__ == '__main__':
     print("hello world")
 
     usage = "usage: %prog [options]\n" \
-            "Params: -s, -i, -m, -a, -n, -c, -w, -g\n"
+            "Params: -s, -i, -m, -a, -n, -c, -w, -g, -u\n"
     parser = OptionParser(usage=usage)
 
     parser.add_option("-d", "--demands", action="store_true", dest="demands", default=False,
@@ -140,7 +254,7 @@ if __name__ == '__main__':
                       help="Initial seed for numpy and random (default 17)")
     parser.add_option("-m", "--modularity", type="int", dest="modularity", default=10,
                       help="Modularity for systems counting (default 10)")
-    parser.add_option("-a", "--aggregation", action="store_true", dest="aggregation", default=False,
+    parser.add_option("-a", "--aggregation", action="store_true", dest="aggregation", default=True,
                       help="Aggregate flows")
     parser.add_option("-g", "--generations", type="int", dest="generations", default=100,
                       help="Max generations (default 100)")
@@ -149,16 +263,19 @@ if __name__ == '__main__':
                       help="Population size (default 150)")
     parser.add_option("-c", "--crossover", type="float", dest="crossover_probability", default=0.2,
                       help="Crossover probability (default 0.2)")
+    parser.add_option("-u", "--mutation", type="float", dest="mutation_probability", default=0.2,
+                      help="Mutation probability (default 0.2)")
 
     (options, args) = parser.parse_args()
     network_data = xml.dom.minidom.parse('network.xml')
     demands = get_demands_from_network(network_data)
 
-    for d in demands:
-        print(d)
+    # for d in demands:
+    #     print(d)
 
     algorithm = EvolutionAlgorithm(demands, population_size=options.population_size,
                                    crossover_prob=options.crossover_probability,
+                                   mutation_prob=options.mutation_probability,
                                    generations=options.generations,
                                    modularity=options.modularity,
                                    aggregation=options.aggregation,
