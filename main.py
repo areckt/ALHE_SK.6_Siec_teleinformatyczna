@@ -5,7 +5,6 @@ import xml.dom.minidom
 from optparse import OptionParser
 import numpy as np
 from numpy.random import randint
-from numpy.random import rand
 
 
 class Link:
@@ -30,7 +29,7 @@ class EvolutionAlgorithm:
         self.max_value = max([x.demand_value for x in list_of_demands])
         self.num_of_demands = len(list_of_demands)
 
-    def initialize(self):
+    def __initialize(self):
         # returns population_size vectors, where each vector has num_of_demands (66) vectors,
         # where each of those vectors has max_num_of_paths (7) random integers
         # in the range [min_value, max_value)
@@ -38,7 +37,8 @@ class EvolutionAlgorithm:
                                  self.max_value,
                                  (self.population_size, self.num_of_demands, self.max_num_of_paths))
 
-    def generate(self, population, scores, k=3):
+    @staticmethod
+    def __generate(population, scores, k=3):
         # first random selection
         selection_ix = randint(len(population))
         for ix in randint(0, len(population), k - 1):
@@ -47,18 +47,18 @@ class EvolutionAlgorithm:
                 selection_ix = ix
         return population[selection_ix]
 
-    def evaluation_method(self, specimen, show_links=False):
+    def evaluation_method(self, specimen_to_evaluate, show_links=False):
         num_of_systems = 0  # this is what we want to minimize
 
         list_of_links = []
 
         # add all loads on links to list
-        for i, flows_for_demand in enumerate(specimen):
-            for j, flow in enumerate(flows_for_demand):
+        for flows_list_index, flows_for_demand in enumerate(specimen_to_evaluate):
+            for flow_index, flow in enumerate(flows_for_demand):
                 if flow <= 0:
                     continue
 
-                corresponding_path = demands[i].admissible_paths[j]
+                corresponding_path = demands[flows_list_index].admissible_paths[flow_index]
                 for link_name in corresponding_path:
                     does_link_exist = False
                     link_index = 0
@@ -80,37 +80,38 @@ class EvolutionAlgorithm:
             num_of_systems += math.ceil(link.flow_load / self.modularity)
         return num_of_systems
 
-    def evaluate(self, trial_specimen, specimen, population, index):
-        specimen_value = self.evaluation_method(specimen)
+    def __evaluate(self, trial_specimen, specimen_to_evaluate, cur_population, index):
+        specimen_value = self.evaluation_method(specimen_to_evaluate)
         trial_specimen_value = self.evaluation_method(trial_specimen)
         if trial_specimen_value <= specimen_value:
-            population[index] = trial_specimen
+            cur_population[index] = trial_specimen
 
-    def crossover_population(self, population):
+    def __crossover_population(self, population_to_crossover):
         crossovered_population = []
-        i, j = 0, 1
-        while j < len(population):
+        first, second = 0, 1
+        while second < len(population_to_crossover):
             random.seed()
             random_num = random.uniform(0, 1)
-            first_specimen = population[i]
-            second_specimen = population[j]
+            first_specimen = population_to_crossover[first]
+            second_specimen = population_to_crossover[second]
             if random_num <= self.crossover_prob:
-                first_specimen, second_specimen = self.crossover(first_specimen, second_specimen)
+                first_specimen, second_specimen = self.__crossover(first_specimen, second_specimen)
             crossovered_population.append(first_specimen)
             crossovered_population.append(second_specimen)
-            i += 2
-            j += 2
+            first += 2
+            second += 2
 
-        if len(population) % 2 != 0:
-            crossovered_population.append(population[-1])
+        if len(population_to_crossover) % 2 != 0:
+            crossovered_population.append(population_to_crossover[-1])
 
-        if len(population) != len(crossovered_population):
+        if len(population_to_crossover) != len(crossovered_population):
             raise Exception
 
         random.seed(self.seed)
         return crossovered_population
 
-    def crossover(self, first_specimen, second_specimen):
+    @staticmethod
+    def __crossover(first_specimen, second_specimen):
         # children are copies of parents by default
         first_child, second_child = first_specimen.copy(), second_specimen.copy()
 
@@ -123,68 +124,68 @@ class EvolutionAlgorithm:
 
         return first_child, second_child
 
-    def mutate_population(self, population):
+    def __mutate_population(self, population_to_mutate):
         mutated_population = []
-        for specimen in population:
+        for cur_specimen in population_to_mutate:
             random.seed()
             random_num = random.uniform(0, 1)
             if random_num <= self.mutation_prob:
-                mutated_specimen = self.mutate(specimen)
-                mutated_repaired_specimen = self.repair(mutated_specimen)
+                mutated_specimen = self.__mutate(cur_specimen)
+                mutated_repaired_specimen = self.__repair(mutated_specimen)
                 mutated_population.append(mutated_repaired_specimen)
             else:
-                mutated_population.append(specimen)
+                mutated_population.append(cur_specimen)
         random.seed(self.seed)
         return mutated_population
 
-    def mutate(self, specimen):
-        mutated_vector = copy.deepcopy(specimen)
+    def __mutate(self, specimen_to_mutate):
+        mutated_vector = copy.deepcopy(specimen_to_mutate)
 
         i = random.randint(0, self.num_of_demands - 1)
         j = random.randint(0, self.max_num_of_paths - 1)
 
         index_of_flow = 0
-        for index, flow in enumerate(specimen[i]):
+        for index, flow in enumerate(specimen_to_mutate[i]):
             if flow > 0:
                 index_of_flow = index
 
         mutated_vector[i][index_of_flow] = 0
 
-        mutated_vector[i][j] = specimen[i][index_of_flow]
+        mutated_vector[i][j] = specimen_to_mutate[i][index_of_flow]
 
         return mutated_vector
 
-    def repair(self, specimen):
+    def __repair(self, specimen_to_repair):
 
         # at first we switch all negative flows to positive
-        for demand in specimen:
-            for i, flow in enumerate(demand):
-                if demand[i] < 0:
-                    demand[i] *= -1
+        for demand in specimen_to_repair:
+            for demand_index, flow in enumerate(demand):
+                if demand[demand_index] < 0:
+                    demand[demand_index] *= -1
 
         # if aggregation is on (i.e. only one flow, rest must be 0)
         # we find the max flow and zero the rest
         # then we give the found max full flow
         if self.aggregation:
-            for i, demand in enumerate(specimen):
+            for demand_index, demand in enumerate(specimen_to_repair):
                 max_index = 0
-                max = -1
-                for j, flow in enumerate(demand):
-                    if flow > max:
-                        max_index = j
-                        max = flow
-                    demand[j] = 0
-                demand[max_index] = demands[i].demand_value
+                max_value = -1
+                for flow_index, flow in enumerate(demand):
+                    if flow > max_value:
+                        max_index = flow_index
+                        max_value = flow
+                    demand[flow_index] = 0
+                demand[max_index] = demands[demand_index].demand_value
 
         # if aggregation is off we normalize all flows to prevent overflow
         else:
-            for i, demand in enumerate(specimen):
-                ratio = demands[i].demand_value / np.sum(demand)
+            for demand_index, demand in enumerate(specimen_to_repair):
+                ratio = demands[demand_index].demand_value / np.sum(demand)
 
-                for j, flow in enumerate(demand):
-                    demand[j] = round(demand[j] * ratio)
+                for flow_index, flow in enumerate(demand):
+                    demand[flow_index] = round(demand[flow_index] * ratio)
 
-        return specimen
+        return specimen_to_repair
 
     # TODO main 'run' function, generally we want to:
     #  1) GENERATE init population
@@ -195,40 +196,33 @@ class EvolutionAlgorithm:
     #    5) SELECT population_size specimens to create next generation (preferably use tournament selection)
     #    back to 2)
     def run(self):
-
         random.seed(self.seed)
         np.random.seed(self.seed)
 
-        print(str(random.uniform(0, 1)))
+        # GENERATE init cur_population
+        cur_population = self.__initialize()
+        # print("num of specimens in cur_population: " + str(len(cur_population)))
+        # print("len of one specimen: " + str(len(cur_population[0])))
+        # print("len of one element of specimen: " + str(len(cur_population[0][0])))
 
+        for index, cur_specimen in enumerate(cur_population.tolist()):
+            cur_population[index] = self.__repair(cur_specimen)
 
-        # GENERATE init population
-        population = self.initialize()
-        print("num of specimens in population: " + str(len(population)))
-        print("len of one specimen: " + str(len(population[0])))
-        print("len of one element of specimen: " + str(len(population[0][0])))
-
-        print(population[0][0])
-
-        for i, specimen in enumerate(population.tolist()):
-            population[i] = self.repair(specimen)
-
-        print("AFTER INIT")
-        # print(population[0])
+        # print("AFTER INIT")
+        # print(cur_population[0])
 
         for generation in range(self.generations):
-            # MUTATE some % of population
-            population = self.mutate_population(population)
-            print("AFTER MUTATION")
-            # print(population[0])
+            # MUTATE some % of cur_population
+            cur_population = self.__mutate_population(cur_population)
+            # print("AFTER MUTATION")
+            # print(cur_population[0])
 
-            # CROSSOVER some % of population (optional)
-            population = self.crossover_population(population)
-            print("AFTER CROSSOVER")
-            # print(population[0])
+            # CROSSOVER some % of cur_population (optional)
+            cur_population = self.__crossover_population(cur_population)
+            # print("AFTER CROSSOVER")
+            # print(cur_population[0])
 
-
-        return population
+        return cur_population
 
 
 class Demand:
@@ -240,11 +234,11 @@ class Demand:
 
     def __repr__(self):
         paths_str = []
-        for i, path in enumerate(self.admissible_paths):
+        for num, path in enumerate(self.admissible_paths):
             links_str = []
             for link in path:
                 links_str.append("\t\t" + link)
-            paths_str.append("\n\tPath " + str(i) + ": " + "\n" + "\n".join(links_str) + "\n")
+            paths_str.append("\n\tPath " + str(num) + ": " + "\n" + "\n".join(links_str) + "\n")
 
         return f'Source: {self.source}\n' \
                f'Target: {self.target}\n' \
