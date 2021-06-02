@@ -86,17 +86,42 @@ class EvolutionAlgorithm:
         if trial_specimen_value <= specimen_value:
             population[index] = trial_specimen
 
+    def crossover_population(self, population):
+        crossovered_population = []
+        i, j = 0, 1
+        while j < len(population):
+            random.seed()
+            random_num = random.uniform(0, 1)
+            first_specimen = population[i]
+            second_specimen = population[j]
+            if random_num <= self.crossover_prob:
+                first_specimen, second_specimen = self.crossover(first_specimen, second_specimen)
+            crossovered_population.append(first_specimen)
+            crossovered_population.append(second_specimen)
+            i += 2
+            j += 2
+
+        if len(population) % 2 != 0:
+            crossovered_population.append(population[-1])
+
+        if len(population) != len(crossovered_population):
+            raise Exception
+
+        random.seed(self.seed)
+        return crossovered_population
+
     def crossover(self, first_specimen, second_specimen):
         # children are copies of parents by default
         first_child, second_child = first_specimen.copy(), second_specimen.copy()
-        # check for recombination
-        if rand() < self.crossover_prob:
-            # select crossover point that is not on the end of the string
-            pt = randint(1, len(first_specimen) - 2)
-            # perform crossover
-            first_child = first_specimen[:pt] + second_specimen[pt:]
-            second_child = second_specimen[:pt] + first_specimen[pt:]
-        return [first_child, second_child]
+
+        # select crossover point that is not on the end of the vector
+        pt = random.randrange(0, len(first_child) - 2, 1)
+
+        # perform crossover
+        first_child = np.concatenate((first_specimen[:pt], second_specimen[pt:]))
+        second_child = np.concatenate((second_specimen[:pt], first_specimen[pt:]))
+
+        return first_child, second_child
 
     def mutate_population(self, population):
         mutated_population = []
@@ -177,7 +202,7 @@ class EvolutionAlgorithm:
         print(str(random.uniform(0, 1)))
 
 
-        #  1) GENERATE init population
+        # GENERATE init population
         population = self.initialize()
         print("num of specimens in population: " + str(len(population)))
         print("len of one specimen: " + str(len(population[0])))
@@ -188,12 +213,20 @@ class EvolutionAlgorithm:
         for i, specimen in enumerate(population.tolist()):
             population[i] = self.repair(specimen)
 
-        print(population[0][0])
+        print("AFTER INIT")
+        # print(population[0])
 
         for generation in range(self.generations):
-            # 3) MUTATE some % of population
+            # MUTATE some % of population
             population = self.mutate_population(population)
-            print(population[0][0])
+            print("AFTER MUTATION")
+            # print(population[0])
+
+            # CROSSOVER some % of population (optional)
+            population = self.crossover_population(population)
+            print("AFTER CROSSOVER")
+            # print(population[0])
+
 
         return population
 
@@ -247,16 +280,16 @@ if __name__ == '__main__':
     parser.add_option("-d", "--demands", action="store_true", dest="demands", default=False,
                       help="Prints demands")
 
-    parser.add_option("-i", "--iterations", type="int", dest="iterations", default=10,
+    parser.add_option("-i", "--iterations", type="int", dest="iterations", default=3,
                       help="Number of algorithms runs, incrementing seed by 1 (default 10)")
 
     parser.add_option("-s", "--seed", type="int", dest="seed", default=17,
                       help="Initial seed for numpy and random (default 17)")
     parser.add_option("-m", "--modularity", type="int", dest="modularity", default=10,
                       help="Modularity for systems counting (default 10)")
-    parser.add_option("-a", "--aggregation", action="store_true", dest="aggregation", default=True,
+    parser.add_option("-a", "--aggregation", action="store_true", dest="aggregation", default=False,
                       help="Aggregate flows")
-    parser.add_option("-g", "--generations", type="int", dest="generations", default=100,
+    parser.add_option("-g", "--generations", type="int", dest="generations", default=10,
                       help="Max generations (default 100)")
 
     parser.add_option("-n", "--population_size", type="int", dest="population_size", default=150,
