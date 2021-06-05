@@ -191,9 +191,6 @@ class EvolutionAlgorithm:
 
         # GENERATE init cur_population
         cur_population = self.__initialize()
-        # print("num of specimens in cur_population: " + str(len(cur_population)))
-        # print("len of one specimen: " + str(len(cur_population[0])))
-        # print("len of one element of specimen: " + str(len(cur_population[0][0])))
 
         for index, cur_specimen in enumerate(cur_population.tolist()):
             cur_population[index] = self.__repair(cur_specimen)
@@ -202,7 +199,7 @@ class EvolutionAlgorithm:
             # MUTATION of some % of cur_population
             cur_population = self.__mutate_population(cur_population)
 
-            # CROSSOVER of some % of cur_population (optional)
+            # CROSSOVER of some % of cur_population
             cur_population = self.__crossover_population(cur_population)
 
             # TOURNAMENT SELECTION
@@ -216,7 +213,7 @@ if __name__ == '__main__':
 
     usage = "usage: %prog [options]\n" \
             "Debug: -q, -d\n" \
-            "Params: -s, -i, -m, -a, -n, -c, -w, -g, -u\n"
+            "Params: -s, -i, -m, -a, -n, -c, -g, -u\n"
     parser = OptionParser(usage=usage)
 
     parser.add_option("-q", "--debug", action="store_true", dest="debug", default=False,
@@ -283,5 +280,6 @@ if __name__ == '__main__':
         else:
             print("\n### " + str(i) + " ###")
         print("\nBest value: " + str(best_value))
-    info = f'\nAverage of {str(len(all_values))} runs: {str(sum(all_values) / len(all_values))}'
+    info = f'\nAverage of {str(len(all_values))} runs: {str(sum(all_values) / len(all_values))}\n' \
+           f'Best: {str(min(all_values))}\tWorst: {str(max(all_values))} '
     print(info)
