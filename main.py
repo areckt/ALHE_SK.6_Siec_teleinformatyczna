@@ -139,17 +139,25 @@ class EvolutionAlgorithm:
     def __mutate(self, specimen_to_mutate):
         mutated_vector = copy.deepcopy(specimen_to_mutate)
 
-        i = random.randint(0, self.num_of_demands - 1)
-        j = random.randint(0, self.max_num_of_paths - 1)
+        if self.aggregation:
+            i = random.randint(0, self.num_of_demands - 1)
+            j = random.randint(0, self.max_num_of_paths - 1)
 
-        index_of_flow = 0
-        for index, flow in enumerate(specimen_to_mutate[i]):
-            if flow > 0:
-                index_of_flow = index
+            index_of_flow = 0
+            for index, flow in enumerate(specimen_to_mutate[i]):
+                if flow > 0:
+                    index_of_flow = index
+                    break
 
-        mutated_vector[i][index_of_flow] = 0
+            mutated_vector[i][index_of_flow] = 0
 
-        mutated_vector[i][j] = specimen_to_mutate[i][index_of_flow]
+            mutated_vector[i][j] = specimen_to_mutate[i][index_of_flow]
+
+        else:
+            i = random.randint(0, self.num_of_demands - 1)
+            for j in range(len(mutated_vector[i])):
+                mutation_strength = random.gauss(0, 1)
+                mutated_vector[i][j] += mutated_vector[i][j] * mutation_strength
 
         return mutated_vector
 
