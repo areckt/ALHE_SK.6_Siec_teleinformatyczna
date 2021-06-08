@@ -139,22 +139,24 @@ class EvolutionAlgorithm:
     def __mutate(self, specimen_to_mutate):
         mutated_vector = copy.deepcopy(specimen_to_mutate)
 
+        i = random.randint(0, self.num_of_demands - 1)
+
         if self.aggregation:
-            i = random.randint(0, self.num_of_demands - 1)
             j = random.randint(0, self.max_num_of_paths - 1)
 
+            flow_value = 0
             index_of_flow = 0
             for index, flow in enumerate(specimen_to_mutate[i]):
                 if flow > 0:
                     index_of_flow = index
+                    flow_value = flow
                     break
 
             mutated_vector[i][index_of_flow] = 0
 
-            mutated_vector[i][j] = specimen_to_mutate[i][index_of_flow]
+            mutated_vector[i][j] = flow_value
 
         else:
-            i = random.randint(0, self.num_of_demands - 1)
             for j in range(len(mutated_vector[i])):
                 mutation_strength = random.gauss(0, 1)
                 mutated_vector[i][j] += mutated_vector[i][j] * mutation_strength
@@ -186,6 +188,11 @@ class EvolutionAlgorithm:
         # if aggregation is off we normalize all flows to prevent overflow
         else:
             for demand_index, demand in enumerate(specimen_to_repair):
+
+                if np.sum(demand) <= 0:
+                    for flow_index in range(len(demand)):
+                        demand[flow_index] = random.uniform(1, 200)
+
                 ratio = demands[demand_index].demand_value / np.sum(demand)
 
                 for flow_index, flow in enumerate(demand):
@@ -217,7 +224,6 @@ class EvolutionAlgorithm:
 
 
 if __name__ == '__main__':
-    print("hello world")
 
     usage = "usage: %prog [options]\n" \
             "Debug: -q, -d\n" \
@@ -282,11 +288,12 @@ if __name__ == '__main__':
 
         all_values.append(best_value)
 
+        print("\n### " + str(i) + " ###")
+
         if debug:
             print("BEST SPECIMEN: ")
             print(str(best)+'\n')
-        else:
-            print("\n### " + str(i) + " ###")
+
         print("\nBest value: " + str(best_value))
     info = f'\nAverage of {str(len(all_values))} runs: {str(sum(all_values) / len(all_values))}\n' \
            f'Best: {str(min(all_values))}\tWorst: {str(max(all_values))} '
